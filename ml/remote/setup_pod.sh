@@ -18,7 +18,7 @@ if ! command -v uv >/dev/null; then
   pip install -q --break-system-packages uv
 fi
 [ -x /workspace/venv/bin/python ] || uv venv /workspace/venv --python 3.12
-uv pip install --python /workspace/venv/bin/python vllm opencv-python-headless numpy "huggingface_hub[cli]"
+uv pip install --python /workspace/venv/bin/python vllm opencv-python-headless numpy pyyaml "huggingface_hub[cli]" fastapi "uvicorn[standard]" python-multipart
 
 for m in $MODELS; do
   /workspace/venv/bin/hf download "$m"

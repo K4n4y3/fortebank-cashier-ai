@@ -124,4 +124,8 @@ def detect(path: Path, api: str, model: str, fps: float = 2.0, window: float = 1
         for (evs, text), w in zip(ex.map(lambda w: _ask(api, model, w), wins), wins):
             found += evs
             raw.append({"start": w[0].t, "answer": text})
+    failed = [r for r in raw if r["answer"].startswith("ERROR")]
+    if len(failed) == len(raw):
+        # модель не ответила ни на одно окно — нельзя молча вернуть «нарушений нет»
+        raise RuntimeError(f"VLM недоступен ({api}): {failed[0]['answer'][:200]}")
     return [e for e in merge(found) if e["conf"] >= thr], raw

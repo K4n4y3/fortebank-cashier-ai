@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Контроль кассовой дисциплины</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <h1>Контроль кассовой дисциплины</h1>
+      <p class="sub">Анализ видеозаписи работы кассира. Все модели работают локально, видео никуда не передаётся.</p>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section id="upload" class="card">
+      <label id="drop" class="drop" for="file">
+        <input id="file" type="file" accept=".mov,.mp4,video/quicktime,video/mp4" hidden>
+        <strong>Перетащите видео сюда</strong>
+        <span>или нажмите, чтобы выбрать файл (.mov)</span>
+      </label>
+      <p id="upload-error" class="error" hidden></p>
+    </section>
+
+    <section id="status" class="card" hidden>
+      <div class="row">
+        <div>
+          <div id="status-file" class="muted"></div>
+          <div id="status-stage">Загрузка…</div>
+        </div>
+        <button id="again" class="btn ghost" hidden>Проверить другое видео</button>
+      </div>
+      <div class="bar"><div id="bar-fill"></div></div>
+    </section>
+
+    <section id="result" hidden>
+      <div id="verdict" class="verdict"></div>
+      <div class="grid">
+        <div class="card player">
+          <video id="video" controls playsinline preload="metadata"></video>
+          <div id="timeline" class="timeline"></div>
+        </div>
+        <div id="violations" class="violations"></div>
+      </div>
+      <p class="disclaimer">Результат является подсказкой для проверки человеком и не является юридическим
+        или дисциплинарным заключением. Сервис не делает выводов о данных, которые не видны на видео
+        (суммы, проводки, сверки).</p>
+    </section>
+  </main>
+
+  <dialog id="zoom"><img alt=""><form method="dialog"><button class="btn">Закрыть</button></form></dialog>
+  <script src="/static/app.js"></script>
+</body>
+</html>

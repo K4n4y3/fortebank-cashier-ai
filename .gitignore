@@ -6,3 +6,5 @@ data/
 weights/
 dataset/
 eval/out/
+.claude/
+data_server.log
