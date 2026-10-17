@@ -71,8 +71,7 @@ bash ml/remote/serve_vllm.sh                # запуск модели офла
 until curl -sf 127.0.0.1:8000/v1/models; do sleep 5; done
 
 cp .env.example .env && nano .env           # PIPELINE=full, API_KEY=<ключ для жюри>, DATA_DIR=/workspace/jobs
-source /workspace/env.sh
-nohup python -m uvicorn app.main:app --host 0.0.0.0 --port 8080 > /workspace/logs/api.log 2>&1 < /dev/null &
+bash ml/remote/start_api.sh               # (пере)запуск сервера на 0.0.0.0:8080, ждёт health
 ```
 
 Проверка снаружи (с любого компьютера):

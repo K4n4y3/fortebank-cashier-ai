@@ -61,9 +61,20 @@ def _evidence(path: Path, t: float, dur: float) -> list[dict]:
     return out[:3]
 
 
+# Слова, по которым наблюдение модели выходит за рамки видимого (р. 7 ТЗ): оформление, суммы, намерения,
+# обвинения. Такое наблюдение в описание не попадает — остаются нейтральное пояснение и норматив из каталога.
+_UNVERIFIABLE = ("оформ", "сумм", "намерен", "умышл", "специально", "чтобы скрыть", "хищ", "укра", "кража",
+                 "мошен", "незакон", "присво")
+
+
+def observation_ok(observation: str) -> bool:
+    low = observation.lower()
+    return not any(w in low for w in _UNVERIFIABLE)
+
+
 def _description(type_id: str, observation: str) -> str:
     r = catalog.rule(type_id)
-    obs = observation.strip().rstrip(".")
+    obs = observation.strip().rstrip(".") if observation_ok(observation) else ""
     parts = [f"На видео: {obs}." if obs else "", r["why"], catalog.source_text(type_id)]
     return " ".join(p for p in parts if p)
 
