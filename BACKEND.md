@@ -1,5 +1,7 @@
 # Передача бэкенду: что готово и как запустить
 
+Репозиторий: https://github.com/K4n4y3/fortebank-cashier-ai (приватный).
+
 Этот документ — для того, кто делает серверную часть и интерфейс. ML-часть подробно описана в
 [ml/README.md](ml/README.md).
 
@@ -58,7 +60,7 @@ cp .env.example .env                                          # и поменя�
 
 ```bash
 ssh root@<IP> -p <SSH_PORT> -i ~/.ssh/id_ed25519
-cd /workspace && git clone <ССЫЛКА_НА_РЕПОЗИТОРИЙ> forte-app   # или git pull, если уже склонирован
+cd /workspace && git clone https://github.com/K4n4y3/fortebank-cashier-ai.git forte-app   # или git pull, если уже склонирован
 cd forte-app
 bash ml/remote/setup_pod.sh                 # один раз: venv в /workspace, vLLM, веса модели (~3–5 мин)
 bash ml/remote/serve_vllm.sh                # запуск модели офлайн (~2–3 мин до готовности)
