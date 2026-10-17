@@ -32,7 +32,7 @@ class Config:
     parallel: int = 16
     thr: float = 0.5
     # политика второй ступени: какие типы перепроверять и какие не выдавать вовсе
-    verify_types: set = field(default_factory=lambda: {"T1", "T4", "T8", "T9", "T13"})
+    verify_types: set = field(default_factory=lambda: {"T1", "T4", "T5", "T8", "T9", "T13"})
     drop_types: set = field(default_factory=set)
     deadline_sec: float = 240.0      # бюджет на ролик; жюри ждёт 300 с
     verify_reserve_sec: float = 60.0  # если на проверку осталось меньше — отдаём кандидатов без неё
