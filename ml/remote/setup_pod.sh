@@ -3,7 +3,7 @@
 # Запуск на поде:  bash /workspace/forte/ml/remote/setup_pod.sh  (лог: /workspace/logs/setup.log)
 set -euo pipefail
 
-MODELS=${MODELS:-"Qwen/Qwen3-VL-8B-Instruct"}
+MODELS=${MODELS:-"Qwen/Qwen3-VL-30B-A3B-Instruct-FP8"}
 
 mkdir -p /workspace/logs /workspace/hf
 cat > /workspace/env.sh <<'EOF'
