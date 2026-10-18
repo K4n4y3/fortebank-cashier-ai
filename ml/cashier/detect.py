@@ -55,7 +55,7 @@ Answer with JSON only:
 "confidence": <0..1>, "observation": "<one short sentence IN RUSSIAN: what exactly is visible>"}}]}}"""
 
 
-def _ask(api: str, model: str, frames: list[Frame], timeout: int = 300) -> tuple[list[dict], str]:
+def _ask(api: str, model: str, frames: list[Frame], timeout: float = 300) -> tuple[list[dict], str]:
     content = [{"type": "text", "text": f"Frames below, numbered from 0; the clip starts at t={frames[0].t:.1f}s."}]
     for k, f in enumerate(frames):
         content.append({"type": "text", "text": f"[frame {k}, t={f.t:.1f}s]"})
@@ -108,8 +108,13 @@ def merge(events: list[dict], gap: float = 4.0) -> list[dict]:
 
 
 def detect(path: Path, api: str, model: str, fps: float = 2.0, window: float = 10.0, stride: float = 5.0,
-           long_side: int = 848, parallel: int = 16, thr: float = 0.5) -> tuple[list[dict], list[dict]]:
-    """Кандидаты ролика: [{type, t, conf, obs}] с conf >= thr, и сырые ответы окон (для отладки)."""
+           long_side: int = 848, parallel: int = 16, thr: float = 0.5,
+           timeout: float = 300) -> tuple[list[dict], list[dict]]:
+    """Кандидаты ролика: [{type, t, conf, obs}] с conf >= thr, и сырые ответы окон (для отладки).
+
+    timeout — сколько секунд ждать ответа модели на одно окно (окна идут параллельно, так что это же
+    и верхняя граница всей ступени).
+    """
     frames, _ = sample(path, fps, long_side)
     if not frames:
         return [], []
@@ -121,7 +126,7 @@ def detect(path: Path, api: str, model: str, fps: float = 2.0, window: float = 1
     wins = [w for w in wins if w]
     found, raw = [], []
     with cf.ThreadPoolExecutor(parallel) as ex:
-        for (evs, text), w in zip(ex.map(lambda w: _ask(api, model, w), wins), wins):
+        for (evs, text), w in zip(ex.map(lambda w: _ask(api, model, w, timeout), wins), wins):
             found += evs
             raw.append({"start": w[0].t, "answer": text})
     failed = [r for r in raw if r["answer"].startswith("ERROR")]

@@ -20,6 +20,7 @@ class Job:
     job_id: str
     filename: str
     input_path: str
+    source: str = "api"  # api — загружено по ключу (жюри), ui — через веб-интерфейс
     created_at: float = field(default_factory=time.time)
     status: str = "processing"  # processing | done | failed
     stage: str = "В очереди"
@@ -34,7 +35,10 @@ class Job:
     violations_api: list[dict] = field(default_factory=list)
     violations_ui: list[dict] = field(default_factory=list)
 
-    def api_view(self) -> dict:
+    def _stage(self, queue_position: int) -> str:
+        return f"Ожидает очереди (место {queue_position})" if queue_position else self.stage
+
+    def api_view(self, queue_position: int = 0) -> dict:
         if self.status == "done":
             return {
                 "job_id": self.job_id,
@@ -42,22 +46,25 @@ class Job:
                 "verdict": self.verdict,
                 "violations": self.violations_api,
             }
-        d = {"job_id": self.job_id, "status": self.status, "progress": round(self.progress, 2), "stage": self.stage}
+        d = {"job_id": self.job_id, "status": self.status, "progress": round(self.progress, 2),
+             "stage": self._stage(queue_position)}
         if self.error:
             d["error"] = self.error
         return d
 
-    def ui_view(self) -> dict:
+    def ui_view(self, queue_position: int = 0) -> dict:
         return {
             "job_id": self.job_id,
             "status": self.status,
-            "stage": self.stage,
+            "stage": self._stage(queue_position),
+            "queue_position": queue_position,
             "progress": round(self.progress, 2),
             "filename": self.filename,
             "error": self.error,
             "verdict": self.verdict,
             "duration_sec": self.duration_sec,
             "processing_sec": self.processing_sec,
+            "elapsed_sec": round((self.finished_at or time.time()) - self.created_at, 1),
             "violations": self.violations_ui,
         }
 
@@ -88,16 +95,17 @@ class JobStore:
             except Exception:
                 log.exception("cannot load %s", f)
                 continue
-            self.jobs[job.job_id] = job
-            if job.status == "processing":
+            if job.status == "processing":  # прерванное рестартом — заново в очередь
+                job.started_at, job.progress, job.stage = None, 0.0, "В очереди"
                 pending.append(job.job_id)
+            self.jobs[job.job_id] = job
         return pending
 
-    def create(self, filename: str, suffix: str) -> Job:
+    def create(self, filename: str, suffix: str, source: str) -> Job:
         job_id = uuid.uuid4().hex[:12]
         d = self.job_dir(job_id)
         d.mkdir(parents=True)
-        job = Job(job_id=job_id, filename=filename, input_path=str(d / f"input{suffix}"))
+        job = Job(job_id=job_id, filename=filename, input_path=str(d / f"input{suffix}"), source=source)
         with self.lock:
             self.jobs[job_id] = job
         return job
@@ -115,6 +123,23 @@ class JobStore:
             for k, v in fields.items():
                 setattr(job, k, v)
         self.save(job)
+
+    def queue_position(self, job: Job) -> int:
+        """Место в очереди, начиная с 1 (0 — задание уже обрабатывается или завершено)."""
+        if job.status != "processing" or job.started_at is not None:
+            return 0
+        with self.lock:
+            waiting = [j for j in self.jobs.values() if j.status == "processing" and j.started_at is None]
+        return 1 + sum(j.created_at < job.created_at for j in waiting)
+
+    def cleanup(self, older_than_sec: float) -> int:
+        """Удаляет завершённые задания (видео и результат), закончившиеся раньше older_than_sec назад."""
+        cutoff = time.time() - older_than_sec
+        with self.lock:
+            old = [j for j in self.jobs.values() if j.status != "processing" and (j.finished_at or j.created_at) < cutoff]
+        for j in old:
+            self.discard(j)
+        return len(old)
 
 
 def _run_job(store: JobStore, job: Job) -> None:

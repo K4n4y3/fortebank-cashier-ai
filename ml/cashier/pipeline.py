@@ -35,7 +35,8 @@ class Config:
     verify_types: set = field(default_factory=lambda: {"T1", "T4", "T5", "T8", "T9", "T13"})
     drop_types: set = field(default_factory=set)
     deadline_sec: float = 240.0      # бюджет на ролик; жюри ждёт 300 с
-    verify_reserve_sec: float = 60.0  # если на проверку осталось меньше — отдаём кандидатов без неё
+    # если на проверку осталось меньше — отдаём кандидатов без неё; не успевшие проверку кандидаты тоже остаются
+    verify_reserve_sec: float = 20.0
 
 
 def _duration(path: Path) -> float:
@@ -89,10 +90,13 @@ def analyze(video: str | Path, cfg: Config | None = None, progress=None) -> dict
     path = Path(video)
     t0 = time.time()
     say = progress or (lambda frac, stage: None)
+    left = lambda: cfg.deadline_sec - (time.time() - t0)  # noqa: E731
     dur = _duration(path)
 
     say(0.05, "Поиск возможных нарушений")
-    cands, _ = detect(path, cfg.api, cfg.model, cfg.fps, cfg.window, cfg.stride, cfg.long_side, cfg.parallel, cfg.thr)
+    # ответ модели на окно ждём не дольше бюджета ролика (10 с — на кадры-доказательства)
+    cands, _ = detect(path, cfg.api, cfg.model, cfg.fps, cfg.window, cfg.stride, cfg.long_side, cfg.parallel, cfg.thr,
+                      timeout=max(20.0, left() - 10.0))
     cands = [c for c in cands if c["type"] not in cfg.drop_types]
     t_detect = time.time() - t0
 
@@ -100,16 +104,21 @@ def analyze(video: str | Path, cfg: Config | None = None, progress=None) -> dict
     kept, skipped_verify = [], False
     to_verify = [c for c in cands if c["type"] in cfg.verify_types]
     kept += [dict(c, verified="not_required") for c in cands if c["type"] not in cfg.verify_types]
-    if to_verify and cfg.deadline_sec - (time.time() - t0) < cfg.verify_reserve_sec:
+    if to_verify and left() < cfg.verify_reserve_sec:
         skipped_verify = True
         kept += [dict(c, verified="skipped_deadline") for c in to_verify]
     elif to_verify:
-        with cf.ThreadPoolExecutor(8) as ex:
-            futs = [(c, ex.submit(verify, path, c["type"], c["t"], dur, cfg.api, cfg.model)) for c in to_verify]
-            for c, f in futs:
-                v = f.result()
-                if v.confirmed:
-                    kept.append(dict(c, verified="confirmed", verify_evidence=v.evidence))
+        ex = cf.ThreadPoolExecutor(8)
+        futs = [(c, ex.submit(verify, path, c["type"], c["t"], dur, cfg.api, cfg.model)) for c in to_verify]
+        cf.wait([f for _, f in futs], timeout=max(5.0, left() - 10.0))
+        for c, f in futs:
+            if not f.done():
+                # проверка не успела к дедлайну — кандидата не теряем (пропуск хуже лишней тревоги)
+                skipped_verify = True
+                kept.append(dict(c, verified="skipped_deadline"))
+            elif f.result().confirmed:
+                kept.append(dict(c, verified="confirmed", verify_evidence=f.result().evidence))
+        ex.shutdown(wait=False, cancel_futures=True)
     t_verify = time.time() - t0 - t_detect
 
     say(0.85, "Подготовка кадров-доказательств")
@@ -123,8 +132,10 @@ def analyze(video: str | Path, cfg: Config | None = None, progress=None) -> dict
             "description": _description(c["type"], c.get("obs", "")),
             "evidence_frames": _evidence(path, float(c["t"]), dur),
         })
+        obs = c.get("obs", "")
         details.append({
-            "type_id": c["type"], "confidence": round(float(c["conf"]), 2), "observation": c.get("obs", ""),
+            "type_id": c["type"], "confidence": round(float(c["conf"]), 2),
+            "observation": obs.strip() if observation_ok(obs) else "",  # то же, что попало в description
             "why": r["why"], "sources": r.get("sources") or [], "verified": c["verified"],
         })
     say(1.0, "Готово")

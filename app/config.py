@@ -23,7 +23,8 @@ WORKERS = int(os.environ.get("WORKERS", "1"))
 JOB_DEADLINE_SEC = float(os.environ.get("JOB_DEADLINE_SEC", "270"))
 UI_OPEN = os.environ.get("UI_OPEN", "1") == "1"
 MAX_UPLOAD_BYTES = int(float(os.environ.get("MAX_UPLOAD_MB", "200")) * 1024 * 1024)
+# Через сколько часов после завершения удалять видео и результат (данные — только в рамках хакатона); 0 — не удалять
+RETENTION_HOURS = float(os.environ.get("RETENTION_HOURS", "72"))
 WEB_DIR = ROOT / "web"
-RULES_PATH = ROOT / "ml" / "cashier" / "violations.yaml"  # единый каталог: им пользуются и модель, и API
 
 ALLOWED_EXTENSIONS = {".mov", ".mp4", ".m4v", ".avi", ".mkv"}

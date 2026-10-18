@@ -4,53 +4,135 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Контроль кассовой дисциплины</title>
-  <link rel="stylesheet" href="/static/styles.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%23a3134a'/%3E%3Ccircle cx='12' cy='12' r='4.5' fill='none' stroke='white' stroke-width='2'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/static/styles.css?v=6">
 </head>
 <body>
   <header class="top">
-    <div class="wrap">
-      <h1>Контроль кассовой дисциплины</h1>
-      <p class="sub">Анализ видеозаписи работы кассира. Все модели работают локально, видео никуда не передаётся.</p>
+    <div class="wrap top-row">
+      <a class="brand" href="#">
+        <svg class="logo" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3.2"/><path d="M7 5V3.5M17 5V3.5"/></svg>
+        <span><b>Контроль кассовой дисциплины</b><small>анализ видеозаписей работы кассира</small></span>
+      </a>
+      <nav>
+        <a href="#" data-view="check">Проверка видео</a>
+        <a href="#about" data-view="about">Как это работает</a>
+        <a href="/docs" target="_blank" rel="noopener">API</a>
+      </nav>
     </div>
   </header>
 
   <main class="wrap">
-    <section id="upload" class="card">
-      <label id="drop" class="drop" for="file">
-        <input id="file" type="file" accept=".mov,.mp4,video/quicktime,video/mp4" hidden>
-        <strong>Перетащите видео сюда</strong>
-        <span>или нажмите, чтобы выбрать файл (.mov)</span>
-      </label>
-      <p id="upload-error" class="error" hidden></p>
-    </section>
+    <div id="view-check">
+      <section id="upload" class="card">
+        <label id="drop" class="drop" for="file">
+          <input id="file" type="file" accept=".mov,.mp4,video/quicktime,video/mp4" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0-4.5 4.5M12 4l4.5 4.5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+          <strong>Перетащите видеозапись кассы сюда</strong>
+          <span>или нажмите, чтобы выбрать файл · формат .mov</span>
+        </label>
+        <p id="upload-error" class="error" hidden></p>
+        <ol class="steps">
+          <li><b>1</b><span>Загрузите видео с камеры кассового помещения</span></li>
+          <li><b>2</b><span>Сервис ищет эпизоды, похожие на нарушения, — обычно 10–60 секунд</span></li>
+          <li><b>3</b><span>Проверьте каждый эпизод по кадрам, описанию и нормативу</span></li>
+        </ol>
+        <p class="muted small">Анализ выполняется моделями на сервере команды; видео и кадры не передаются во внешние сервисы.</p>
+      </section>
 
-    <section id="status" class="card" hidden>
-      <div class="row">
-        <div>
-          <div id="status-file" class="muted"></div>
-          <div id="status-stage">Загрузка…</div>
+      <section id="status" class="card" hidden>
+        <div class="row">
+          <div>
+            <div id="status-file" class="muted small"></div>
+            <div id="status-stage" class="stage">Загрузка…</div>
+          </div>
+          <div class="row">
+            <span id="status-time" class="muted mono"></span>
+            <button id="again" class="btn ghost" hidden>Проверить другое видео</button>
+          </div>
         </div>
-        <button id="again" class="btn ghost" hidden>Проверить другое видео</button>
-      </div>
-      <div class="bar"><div id="bar-fill"></div></div>
-    </section>
+        <div class="bar"><div id="bar-fill"></div></div>
+      </section>
 
-    <section id="result" hidden>
-      <div id="verdict" class="verdict"></div>
-      <div class="grid">
-        <div class="card player">
-          <video id="video" controls playsinline preload="metadata"></video>
-          <div id="timeline" class="timeline"></div>
+      <section id="result" hidden>
+        <div id="verdict" class="verdict" role="status">
+          <div id="verdict-title"></div>
+          <div id="verdict-meta" class="verdict-meta"></div>
         </div>
-        <div id="violations" class="violations"></div>
-      </div>
-      <p class="disclaimer">Результат является подсказкой для проверки человеком и не является юридическим
-        или дисциплинарным заключением. Сервис не делает выводов о данных, которые не видны на видео
-        (суммы, проводки, сверки).</p>
-    </section>
+        <div class="grid">
+          <div class="card player">
+            <video id="video" controls playsinline muted preload="metadata"></video>
+            <p id="video-note" class="muted small" hidden>Браузер не может воспроизвести этот файл — смотрите кадры-доказательства в карточках.</p>
+            <div id="timeline" class="timeline" aria-label="Найденные эпизоды на шкале времени"></div>
+            <p id="timeline-hint" class="muted small">Точки на шкале — найденные эпизоды. Нажмите на точку или таймкод, чтобы перейти к моменту.</p>
+          </div>
+          <div id="violations" class="violations"></div>
+        </div>
+        <p class="disclaimer">Результат — подсказка для проверки человеком, а не юридическое или дисциплинарное
+          заключение. Сервис не делает выводов о том, чего не видно на видео: суммах, проводках, сверках.</p>
+      </section>
+    </div>
+
+    <div id="view-about" hidden>
+      <section class="card prose">
+        <h2>Что делает сервис</h2>
+        <p>Сервис просматривает видеозапись кассового помещения и ищет визуально наблюдаемые действия, которые могут
+          указывать на нарушение кассовой дисциплины. Для каждого найденного эпизода он показывает тип, таймкод,
+          1–3 кадра, краткое описание увиденного и пункт нормативного акта Республики Казахстан.</p>
+        <h2>Как устроен анализ</h2>
+        <ol>
+          <li><b>Поиск.</b> Визуально-языковая модель просматривает ролик окнами по 10 секунд (2 кадра в секунду) и
+            отмечает эпизоды из перечня типов ниже, а также «иное возможное нарушение».</li>
+          <li><b>Повторная проверка.</b> Эпизоды типов, где модель чаще ошибается (уход с рабочего места, телефон, еда,
+            манипуляции с купюрами, идентификация клиента, ключ от сейфа), проверяются узким вопросом на увеличенных
+            кадрах нужной области.</li>
+          <li><b>Результат.</b> Обоснование и норматив берутся из каталога правил; модель добавляет только описание
+            того, что видно в кадре.</li>
+        </ol>
+        <p>Модель — Qwen3-VL-30B-A3B (лицензия Apache-2.0), работает через vLLM на сервере команды без доступа в интернет.
+          Облачные AI-сервисы не используются; лица не распознаются; звук не анализируется.</p>
+      </section>
+
+      <section class="card prose">
+        <h2>Распознаваемые типы нарушений</h2>
+        <p class="muted">Связь пункта с видео: <span class="basis">прямое требование</span> — пункт прямо регулирует
+          наблюдаемое действие; <span class="basis">трактовка</span> — пункт регулирует близкую норму, связь с
+          видео — интерпретация команды.</p>
+        <div id="types" class="types"><p class="muted">Загрузка перечня…</p></div>
+      </section>
+
+      <section class="card prose">
+        <h2>Нормативные источники</h2>
+        <ul id="docs"></ul>
+      </section>
+
+      <section class="card prose">
+        <h2>Ограничения</h2>
+        <ul>
+          <li>Сервис выдаёт подсказку для проверяющего, а не заключение. Если вывод требует невидимых данных
+            (сумма, проводка, сверка), формулировка остаётся «требует сверки».</li>
+          <li>Мелкие детали (ключ в замке сейфа, удостоверение против купюры) на записи 464×848 различаются
+            ненадёжно.</li>
+          <li>Чаще всего ложные срабатывания — «не проведена идентификация» и «уход с рабочего места»; таймкод
+            входа и выхода людей может отличаться от начала действия на 2–5 секунд.</li>
+          <li>Модель не обучалась на конкретных роликах и не привязана к координатам в кадре, но качество на сильно
+            другом ракурсе не измерено.</li>
+        </ul>
+      </section>
+
+      <section class="card prose">
+        <h2>API для интеграции</h2>
+        <p>Доступ по ключу в заголовке <code>X-API-Key</code>. Обработка асинхронная: загрузка возвращает
+          <code>job_id</code>, результат забирается по нему.</p>
+        <pre><code>curl -X POST <span class="origin"></span>/api/v1/analyze -H "X-API-Key: &lt;ключ&gt;" -F "file=@video.mov"
+curl <span class="origin"></span>/api/v1/jobs/&lt;job_id&gt; -H "X-API-Key: &lt;ключ&gt;"</code></pre>
+        <p>Статусы: <code>processing</code>, <code>done</code>, <code>failed</code>. Полное описание — на странице
+          <a href="/docs" target="_blank" rel="noopener">/docs</a>.</p>
+      </section>
+    </div>
   </main>
 
   <dialog id="zoom"><img alt=""><form method="dialog"><button class="btn">Закрыть</button></form></dialog>
-  <script src="/static/app.js"></script>
+  <script src="/static/app.js?v=6"></script>
 </body>
 </html>
