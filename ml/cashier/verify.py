@@ -172,9 +172,21 @@ def _union(a, b):
     return (min(a[0], b[0]), min(a[1], b[1]), max(a[2], b[2]), max(a[3], b[3]))
 
 
+REF_NOTE = (" Before the frames to check you get short reference clips from earlier, already labeled footage of a "
+            "cash room: a confirmed VIOLATION of this type and a NORMAL situation that looks similar. Compare the frames "
+            "to check with them: answer yes only if they show the same kind of action as the violation reference; if "
+            "they look like the normal reference, answer no. The references are only for comparison; answer about the "
+            "frames to check, and frame indices refer to those frames.")
+
+
 def verify(video: Path, type_id: str, t: float, duration: float, api: str, model: str,
-           max_frames: int = 18, unclear_as_violation: bool = False) -> Verdict:
+           max_frames: int = 18, unclear_as_violation: bool = False,
+           references: list[tuple[str, list[np.ndarray]]] | None = None) -> Verdict:
+    """references (v2) — размеченные примеры из памяти: [("violation" | "normal", кадры)], показываются модели
+    перед проверяемыми кадрами, чтобы она сравнивала с уже виденными случаями, а не толковала правило сама."""
     st = STRUCTURED.get(type_id)
+    if references:
+        max_frames = min(max_frames, 14)  # чтобы вместе с примерами уложиться в лимит изображений на запрос
     before, after, fps = st["clip"] if st else CLIP.get(type_id, CLIP["OTHER"])
     t0, t1 = max(0.0, t - before), min(duration - 0.05, t + after)
     n = min(max_frames, max(2, int((t1 - t0) * fps) + 1))
@@ -201,7 +213,13 @@ def verify(video: Path, type_id: str, t: float, duration: float, api: str, model
         text = (head + "Answer strictly based on what is visible.\nQuestion: " + QUESTIONS.get(type_id, QUESTIONS["OTHER"])
                 + "\nReturn answer (yes/no/unclear), the index of the frame that shows it best, and one-sentence evidence.")
         schema = ANSWER_SCHEMA
-    content = [{"type": "text", "text": text}]
+    content = [{"type": "text", "text": text + (REF_NOTE if references else "")}]
+    for label, ref_frames in references or []:
+        content.append({"type": "text", "text": f"[Reference: {label.upper()} example]"})
+        content += [{"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{encode(resize(f, 640))}"}}
+                    for f in ref_frames]
+    if references:
+        content.append({"type": "text", "text": "[Frames to check]"})
     for k, (tt, fr) in enumerate(frames):
         img = _crop(fr, region) if region else resize(fr, 848)
         content.append({"type": "text", "text": f"[frame {k}, t={tt:.1f}s]"})
