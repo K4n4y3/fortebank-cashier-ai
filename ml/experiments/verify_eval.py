@@ -75,6 +75,7 @@ def main():
     ap.add_argument("--tag", default="v1")
     ap.add_argument("--force", action="store_true")
     ap.add_argument("--types", nargs="*", help="проверять только кандидатов этих типов")
+    ap.add_argument("--temperature", type=float, default=0.0, help="> 0 — для голосования по нескольким запускам")
     a = ap.parse_args()
 
     truth = load_truth()
@@ -99,7 +100,8 @@ def main():
     print(f"candidates: {len(cands)}, to verify: {len(todo)}", flush=True)
 
     def work(c):
-        v = verify(VIDEOS / f"{c['video']}.mov", c["type"], c["t"], durs[c["video"]], a.api, a.model)
+        v = verify(VIDEOS / f"{c['video']}.mov", c["type"], c["t"], durs[c["video"]], a.api, a.model,
+                   temperature=a.temperature)
         return c, v
 
     with cf.ThreadPoolExecutor(a.parallel) as ex:

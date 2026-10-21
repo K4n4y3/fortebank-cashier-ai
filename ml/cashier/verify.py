@@ -181,7 +181,7 @@ REF_NOTE = (" Before the frames to check you get short reference clips from earl
 
 def verify(video: Path, type_id: str, t: float, duration: float, api: str, model: str,
            max_frames: int = 18, unclear_as_violation: bool = False,
-           references: list[tuple[str, list[np.ndarray]]] | None = None) -> Verdict:
+           references: list[tuple[str, list[np.ndarray]]] | None = None, temperature: float = 0.0) -> Verdict:
     """references (v2) — размеченные примеры из памяти: [("violation" | "normal", кадры)], показываются модели
     перед проверяемыми кадрами, чтобы она сравнивала с уже виденными случаями, а не толковала правило сама."""
     st = STRUCTURED.get(type_id)
@@ -228,7 +228,7 @@ def verify(video: Path, type_id: str, t: float, duration: float, api: str, model
             # для ухода/двери даём ещё и общий план — нужен контекст, где люди
             content.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{encode(resize(fr, 640))}"}})
     body = {
-        "model": model, "temperature": 0.0, "max_tokens": 200,
+        "model": model, "temperature": temperature, "max_tokens": 200,
         "messages": [{"role": "user", "content": content}],
         "response_format": {"type": "json_schema", "json_schema": {"name": "verdict", "schema": schema}},
     }
